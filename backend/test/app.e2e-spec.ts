@@ -7,6 +7,12 @@ import type TestAgent from 'supertest/lib/agent';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+interface TaskResponseBody {
+  id: string;
+  title: string;
+  position: number;
+}
+
 describe('TaskFlow critical flow (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -165,7 +171,7 @@ describe('TaskFlow critical flow (e2e)', () => {
           .post(`/api/projects/${projectId}/tasks`)
           .send({ title })
           .expect(201);
-        ids.push(res.body.id);
+        ids.push((res.body as TaskResponseBody).id);
       }
 
       // Кидаємо C між A і B.
@@ -178,7 +184,8 @@ describe('TaskFlow critical flow (e2e)', () => {
         .get(`/api/projects/${projectId}/tasks?status=TODO&limit=50`)
         .expect(200);
 
-      const order = list.body.data
+      const tasks = list.body.data as TaskResponseBody[];
+      const order = tasks
         .sort(
           (a: { position: number }, b: { position: number }) =>
             a.position - b.position,
@@ -186,9 +193,7 @@ describe('TaskFlow critical flow (e2e)', () => {
         .map((t: { title: string }) => t.title);
       expect(order).toEqual(['A', 'C', 'B']);
 
-      const positions = list.body.data.map(
-        (t: { position: number }) => t.position,
-      );
+      const positions = tasks.map((t) => t.position);
       expect(new Set(positions).size).toBe(positions.length);
     });
   });

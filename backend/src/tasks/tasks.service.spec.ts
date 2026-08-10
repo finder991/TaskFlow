@@ -1,5 +1,10 @@
-import { BadRequestException } from '@nestjs/common';
-import { TaskActivityType, TaskPriority, TaskStatus } from '@prisma/client';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  TaskActivityType,
+  TaskPriority,
+  TaskStatus,
+  WorkspaceRole,
+} from '@prisma/client';
 import { AccessControlService } from '../common/access/access-control.service';
 import { RealtimeEvent } from '../realtime/realtime.events';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -49,7 +54,7 @@ describe('TasksService', () => {
     ...overrides,
   });
 
-  const accessTask = (overrides: Record<string, unknown> = {}) => ({
+  const accessTask = (role: WorkspaceRole = WorkspaceRole.OWNER) => ({
     task: {
       id: TASK_ID,
       projectId: PROJECT_ID,
@@ -57,9 +62,8 @@ describe('TasksService', () => {
       priority: TaskPriority.MEDIUM,
       assigneeId: null,
       project: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      ...overrides,
     },
-    role: 'MEMBER',
+    role,
   });
 
   beforeEach(() => {
@@ -80,7 +84,7 @@ describe('TasksService', () => {
     access = {
       requireProjectAccess: jest.fn().mockResolvedValue({
         project: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-        role: 'MEMBER',
+        role: WorkspaceRole.MEMBER,
       }),
       requireTaskAccess: jest.fn(),
     };
@@ -179,6 +183,19 @@ describe('TasksService', () => {
       );
     });
 
+    it('забороняє учаснику редагувати задачу', async () => {
+      access.requireTaskAccess.mockResolvedValue(
+        accessTask(WorkspaceRole.MEMBER),
+      );
+
+      await expect(
+        service.update(USER_ID, TASK_ID, { title: 'Blocked' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(tasksRepo.update).not.toHaveBeenCalled();
+      expect(tasksRepo.createActivities).not.toHaveBeenCalled();
+      expect(realtime.emitToProject).not.toHaveBeenCalled();
+    });
+
     it('не пише активність, якщо змінилися лише текстові поля', async () => {
       access.requireTaskAccess.mockResolvedValue(accessTask());
       tasksRepo.update.mockResolvedValue(buildTaskRow({ title: 'New title' }));
@@ -250,6 +267,32 @@ describe('TasksService', () => {
 
       expect(tasksRepo.createActivity).not.toHaveBeenCalled();
     });
+
+    it('дозволяє учаснику переміщувати задачу', async () => {
+      access.requireTaskAccess.mockResolvedValue(
+        accessTask(WorkspaceRole.MEMBER),
+      );
+      tasksRepo.reorder.mockResolvedValue(
+        buildTaskRow({ status: TaskStatus.IN_PROGRESS, position: 1 }),
+      );
+
+      await service.move(USER_ID, TASK_ID, {
+        status: TaskStatus.IN_PROGRESS,
+        position: 1,
+      });
+
+      expect(tasksRepo.reorder).toHaveBeenCalledWith(
+        TASK_ID,
+        PROJECT_ID,
+        TaskStatus.IN_PROGRESS,
+        1,
+      );
+      expect(realtime.emitToProject).toHaveBeenCalledWith(
+        PROJECT_ID,
+        RealtimeEvent.TASK_UPDATED,
+        expect.any(Object),
+      );
+    });
   });
 
   describe('remove', () => {
@@ -268,6 +311,18 @@ describe('TasksService', () => {
         },
       );
       expect(result).toEqual({ success: true });
+    });
+
+    it('забороняє учаснику видаляти задачу', async () => {
+      access.requireTaskAccess.mockResolvedValue(
+        accessTask(WorkspaceRole.MEMBER),
+      );
+
+      await expect(service.remove(USER_ID, TASK_ID)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(tasksRepo.delete).not.toHaveBeenCalled();
+      expect(realtime.emitToProject).not.toHaveBeenCalled();
     });
   });
 

@@ -1,10 +1,16 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, TaskActivityType, TaskStatus } from '@prisma/client';
+import {
+  Prisma,
+  TaskActivityType,
+  TaskStatus,
+  WorkspaceRole,
+} from '@prisma/client';
 import { AccessControlService } from '../common/access/access-control.service';
 import { PaginatedResult } from '../common/dto/pagination.dto';
 import { RealtimeEvent } from '../realtime/realtime.events';
@@ -133,7 +139,8 @@ export class TasksService {
     taskId: string,
     dto: UpdateTaskDto,
   ): Promise<TaskDto> {
-    const { task } = await this.access.requireTaskAccess(userId, taskId);
+    const { task, role } = await this.access.requireTaskAccess(userId, taskId);
+    this.assertCanManageTask(role);
 
     if (dto.assigneeId) {
       await this.assertAssigneeIsMember(
@@ -248,7 +255,8 @@ export class TasksService {
   }
 
   async remove(userId: string, taskId: string): Promise<{ success: true }> {
-    const { task } = await this.access.requireTaskAccess(userId, taskId);
+    const { task, role } = await this.access.requireTaskAccess(userId, taskId);
+    this.assertCanManageTask(role);
     await this.tasks.delete(taskId);
     this.logger.log(`Видалено задачу ${taskId} (користувач ${userId})`);
     this.realtime.emitToProject(task.projectId, RealtimeEvent.TASK_DELETED, {
@@ -296,6 +304,14 @@ export class TasksService {
     if (!membership) {
       throw new BadRequestException(
         'Виконавець має бути учасником робочого простору',
+      );
+    }
+  }
+
+  private assertCanManageTask(role: WorkspaceRole): void {
+    if (role !== WorkspaceRole.OWNER) {
+      throw new ForbiddenException(
+        'Редагувати або видаляти задачу може лише власник робочого простору',
       );
     }
   }
