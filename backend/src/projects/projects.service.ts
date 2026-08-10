@@ -62,7 +62,12 @@ export class ProjectsService {
     projectId: string,
     dto: UpdateProjectDto,
   ): Promise<ProjectDto> {
-    await this.access.requireProjectAccess(userId, projectId);
+    const { role } = await this.access.requireProjectAccess(userId, projectId);
+    if (role !== WorkspaceRole.OWNER) {
+      throw new ForbiddenException(
+        'Редагувати проєкт може лише власник робочого простору',
+      );
+    }
     const project = await this.projects.update(projectId, {
       name: dto.name,
       description: dto.description,
