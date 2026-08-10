@@ -2,7 +2,13 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TaskCard, type Task } from '@/entities/task';
 
-export function SortableTaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
+export function SortableTaskCard({
+  task,
+  onClick,
+}: {
+  task: Task;
+  onClick: () => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { status: task.status },

@@ -56,6 +56,7 @@ export function BoardPage() {
 
   const tasks = useMemo(() => board.data ?? [], [board.data]);
   const visibleTasks = useMemo(() => filterTasks(tasks, filters), [tasks, filters]);
+  const canManageTasks = workspace.data?.role === 'OWNER';
 
   const openCreateForm = (status?: TaskStatus) => {
     setEditingTask(null);
@@ -64,6 +65,7 @@ export function BoardPage() {
   };
 
   const openEditForm = (task: Task) => {
+    if (!canManageTasks) return;
     setEditingTask(task);
     setFormStatus(undefined);
     setDetailsTaskId(null);
@@ -117,6 +119,7 @@ export function BoardPage() {
         projectId={projectId}
         members={members}
         open={Boolean(detailsTaskId)}
+        canManageTask={canManageTasks}
         onClose={() => setDetailsTaskId(null)}
         onEdit={openEditForm}
       />

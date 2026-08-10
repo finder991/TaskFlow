@@ -19,6 +19,7 @@ interface TaskDetailsDialogProps {
   projectId: string;
   members: UserSummary[];
   open: boolean;
+  canManageTask: boolean;
   onClose: () => void;
   onEdit: (task: Task) => void;
 }
@@ -28,6 +29,7 @@ export function TaskDetailsDialog({
   projectId,
   members,
   open,
+  canManageTask,
   onClose,
   onEdit,
 }: TaskDetailsDialogProps) {
@@ -59,19 +61,21 @@ export function TaskDetailsDialog({
         <div className="space-y-5">
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-lg font-semibold leading-snug text-slate-900">{task.title}</h2>
-            <div className="flex shrink-0 gap-2">
-              <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
-                Редагувати
-              </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                isLoading={deleteTask.isPending}
-                onClick={() => setConfirming(true)}
-              >
-                Видалити
-              </Button>
-            </div>
+            {canManageTask && (
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
+                  Редагувати
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  isLoading={deleteTask.isPending}
+                  onClick={() => setConfirming(true)}
+                >
+                  Видалити
+                </Button>
+              </div>
+            )}
           </div>
 
           <dl className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -108,21 +112,23 @@ export function TaskDetailsDialog({
             )}
           </section>
 
-          <ConfirmDialog
-            open={confirming}
-            title="Видалити задачу?"
-            description="Разом із задачею зникнуть її коментарі та історія змін."
-            isLoading={deleteTask.isPending}
-            onCancel={() => setConfirming(false)}
-            onConfirm={() =>
-              deleteTask.mutate(task.id, {
-                onSuccess: () => {
-                  setConfirming(false);
-                  onClose();
-                },
-              })
-            }
-          />
+          {canManageTask && (
+            <ConfirmDialog
+              open={confirming}
+              title="Видалити задачу?"
+              description="Разом із задачею зникнуть її коментарі та історія змін."
+              isLoading={deleteTask.isPending}
+              onCancel={() => setConfirming(false)}
+              onConfirm={() =>
+                deleteTask.mutate(task.id, {
+                  onSuccess: () => {
+                    setConfirming(false);
+                    onClose();
+                  },
+                })
+              }
+            />
+          )}
         </div>
       )}
     </Dialog>

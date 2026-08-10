@@ -21,7 +21,12 @@ interface KanbanBoardProps {
 
 const DRAG_ACTIVATION_DISTANCE = 5;
 
-export function KanbanBoard({ tasks, onTaskClick, onAddTask, onMove }: KanbanBoardProps) {
+export function KanbanBoard({
+  tasks,
+  onTaskClick,
+  onAddTask,
+  onMove,
+}: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: DRAG_ACTIVATION_DISTANCE } }),
