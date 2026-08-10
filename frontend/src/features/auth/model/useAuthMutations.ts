@@ -24,7 +24,6 @@ export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => sessionApi.logout(),
-
     onSettled: () => {
       useSessionStore.getState().clear();
       queryClient.clear();
